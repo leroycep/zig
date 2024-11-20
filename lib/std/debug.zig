@@ -16,6 +16,7 @@ const native_endian = native_arch.endian();
 pub const MemoryAccessor = @import("debug/MemoryAccessor.zig");
 pub const FixedBufferReader = @import("debug/FixedBufferReader.zig");
 pub const Dwarf = @import("debug/Dwarf.zig");
+pub const Elf = @import("debug/Elf.zig");
 pub const Pdb = @import("debug/Pdb.zig");
 pub const SelfInfo = @import("debug/SelfInfo.zig");
 pub const Info = @import("debug/Info.zig");
@@ -753,9 +754,10 @@ pub const StackIterator = struct {
             else => {},
         }
 
-        if (try module.getDwarfInfoForAddress(unwind_state.debug_info.allocator, unwind_state.dwarf_context.pc)) |di| {
-            return SelfInfo.unwindFrameDwarf(di, &unwind_state.dwarf_context, &it.ma, null);
-        } else return error.MissingDebugInfo;
+        // if (try module.getDwarfInfoForAddress(unwind_state.debug_info.allocator, unwind_state.dwarf_context.pc)) |di| {
+        //     return SelfInfo.unwindFrameDwarf(di, &unwind_state.dwarf_context, &it.ma, null);
+        // } else return error.MissingDebugInfo;
+        return error.MissingDebugInfo;
     }
 
     fn next_internal(it: *StackIterator) ?usize {
@@ -945,7 +947,10 @@ fn printUnwindError(debug_info: *SelfInfo, out_stream: anytype, address: usize, 
 
 pub fn printSourceAtAddress(debug_info: *SelfInfo, out_stream: anytype, address: usize, tty_config: io.tty.Config) !void {
     const module = debug_info.getModuleForAddress(address) catch |err| switch (err) {
-        error.MissingDebugInfo, error.InvalidDebugInfo => return printUnknownSource(debug_info, out_stream, address, tty_config),
+        error.MissingDebugInfo, error.InvalidDebugInfo => {
+            try out_stream.print("module not found for address: {}\n", .{err});
+            return printUnknownSource(debug_info, out_stream, address, tty_config);
+        },
         else => return err,
     };
 

@@ -17,6 +17,7 @@ const pdb = std.pdb;
 const assert = std.debug.assert;
 const posix = std.posix;
 const elf = std.elf;
+const Elf = std.debug.Elf;
 const Dwarf = std.debug.Dwarf;
 const Pdb = std.debug.Pdb;
 const File = std.fs.File;
@@ -462,30 +463,15 @@ fn lookupModuleDl(self: *SelfInfo, address: usize) !*Module {
         return obj_di;
     }
 
-    const obj_di = try self.allocator.create(Module);
-    errdefer self.allocator.destroy(obj_di);
+    const obj_ei = try self.allocator.create(Module);
+    errdefer self.allocator.destroy(obj_ei);
 
-    var sections: Dwarf.SectionArray = Dwarf.null_section_array;
-    if (ctx.gnu_eh_frame) |eh_frame_hdr| {
-        // This is a special case - pointer offsets inside .eh_frame_hdr
-        // are encoded relative to its base address, so we must use the
-        // version that is already memory mapped, and not the one that
-        // will be mapped separately from the ELF file.
-        sections[@intFromEnum(Dwarf.Section.Id.eh_frame_hdr)] = .{
-            .data = eh_frame_hdr,
-            .owned = false,
-        };
-    }
+    obj_ei.* = try readElfDebugInfo(self.allocator, if (ctx.name.len > 0) ctx.name else null, null);
+    obj_ei.base_address = ctx.base_address;
 
-    obj_di.* = try readElfDebugInfo(self.allocator, if (ctx.name.len > 0) ctx.name else null, ctx.build_id, null, &sections, null);
-    obj_di.base_address = ctx.base_address;
+    try self.address_map.putNoClobber(ctx.base_address, obj_ei);
 
-    // Missing unwind info isn't treated as a failure, as the unwinder will fall back to FP-based unwinding
-    obj_di.dwarf.scanAllUnwindInfo(self.allocator, ctx.base_address) catch {};
-
-    try self.address_map.putNoClobber(ctx.base_address, obj_di);
-
-    return obj_di;
+    return obj_ei;
 }
 
 fn lookupModuleHaiku(self: *SelfInfo, address: usize) !*Module {
@@ -794,7 +780,7 @@ pub const Module = switch (native_os) {
             };
         }
     },
-    .linux, .netbsd, .freebsd, .dragonfly, .openbsd, .haiku, .solaris, .illumos => Dwarf.ElfModule,
+    .linux, .netbsd, .freebsd, .dragonfly, .openbsd, .haiku, .solaris, .illumos => Elf,
     .wasi, .emscripten => struct {
         pub fn deinit(self: *@This(), allocator: Allocator) void {
             _ = self;
@@ -1043,11 +1029,8 @@ fn readCoffDebugInfo(allocator: Allocator, coff_obj: *coff.Coff) !Module {
 pub fn readElfDebugInfo(
     allocator: Allocator,
     elf_filename: ?[]const u8,
-    build_id: ?[]const u8,
     expected_crc: ?u32,
-    parent_sections: *Dwarf.SectionArray,
-    parent_mapped_mem: ?[]align(mem.page_size) const u8,
-) !Dwarf.ElfModule {
+) !Elf {
     nosuspend {
         const elf_file = (if (elf_filename) |filename| blk: {
             break :blk fs.cwd().openFile(filename, .{});
@@ -1057,14 +1040,10 @@ pub fn readElfDebugInfo(
         };
 
         const mapped_mem = try mapWholeFile(elf_file);
-        return Dwarf.ElfModule.load(
+        return Elf.load(
             allocator,
             mapped_mem,
-            build_id,
             expected_crc,
-            parent_sections,
-            parent_mapped_mem,
-            elf_filename,
         );
     }
 }
