@@ -1112,7 +1112,7 @@ pub const Elf = union(enum) {
         _ = allocator;
         _ = address;
         return switch (this.*) {
-            .dwarf => |dwarf_info| &dwarf_info.dwarf,
+            .dwarf => |*dwarf_info| &dwarf_info.dwarf,
             .symtab => null,
         };
     }
