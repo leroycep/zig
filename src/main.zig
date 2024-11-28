@@ -515,12 +515,13 @@ const usage_build_generic =
     \\  -fno-error-tracing        Disable error tracing in Debug and ReleaseSafe mode
     \\  -fsingle-threaded         Code assumes there is only one thread
     \\  -fno-single-threaded      Code may not assume there is only one thread
-    \\  -fstrip                   Omit debug symbols
-    \\  -fno-strip                Keep debug symbols
-    \\  -fstrip=[level]           Set strip level
-    \\    none                    Don't strip debuginfo or symbol table
-    \\    debuginfo               Strip debuginfo, but retain symbol table
-    \\    all                     Strip debuginfo and symbol table
+    \\  -fdebuginfo=[format]      Set debug info format
+    \\    none                    Don't emit any debug info
+    \\    symbols                 Emit names for functions and global variables
+    \\    dwarf                   Emit dwarf debug information, dwarf32 or dwarf64 depending on the target
+    \\    dwarf32                 Emit dwarf32 debug information
+    \\    dwarf64                 Emit dwarf64 debug information
+    \\    code_view               (Windows) Emit code_view debug information
     \\  -idirafter [dir]          Add directory to AFTER include search path
     \\  -isystem  [dir]           Add directory to SYSTEM include search path
     \\  -I[dir]                   Add directory to include search path
@@ -1525,16 +1526,18 @@ fn buildOutputType(
                     } else if (mem.eql(u8, arg, "--show-builtin")) {
                         show_builtin = true;
                         emit_bin = .no;
-                    } else if (mem.startsWith(u8, arg, "-fstrip=")) {
-                        const strip_str = arg["-fstrip=".len..];
-                        if (mem.eql(u8, strip_str, "none")) {
-                            mod_opts.strip = .none;
-                        } else if (mem.eql(u8, strip_str, "debuginfo")) {
-                            mod_opts.strip = .debuginfo;
-                        } else if (mem.eql(u8, strip_str, "all")) {
-                            mod_opts.strip = .all;
+                    } else if (mem.startsWith(u8, arg, "-fdebuginfo=")) {
+                        const debug_format_str = arg["-fdebuginfo=".len..];
+                        if (mem.eql(u8, debug_format_str, "none")) {
+                            create_module.opts.debug_format = .none;
+                        } else if (mem.eql(u8, debug_format_str, "symbols")) {
+                            create_module.opts.debug_format = .symbols;
+                        } else if (mem.eql(u8, debug_format_str, "dwarf32")) {
+                            create_module.opts.debug_format = .{ .dwarf = .@"32" };
+                        } else if (mem.eql(u8, debug_format_str, "dwarf64")) {
+                            create_module.opts.debug_format = .{ .dwarf = .@"64" };
                         } else {
-                            fatal("expected [none|debuginfo|all] after -fstrip=", .{});
+                            fatal("unrecognized debug format \"{s}\"", .{debug_format_str});
                         }
                     } else if (mem.eql(u8, arg, "-fstrip")) {
                         mod_opts.strip = .all;
