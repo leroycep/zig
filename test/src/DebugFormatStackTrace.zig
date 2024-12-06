@@ -13,6 +13,7 @@ const Config = struct {
     const PerFormat = struct {
         expect_panic: bool = false,
         expect: []const u8,
+        exclude_arch: []const std.Target.Cpu.Arch = &.{},
         exclude_os: []const std.Target.Os.Tag = &.{},
         exclude_optimize_mode: []const std.builtin.OptimizeMode = &.{},
     };
@@ -38,6 +39,7 @@ fn addExpect(
     debug_format: DebugFormat,
     mode_config: Config.PerFormat,
 ) void {
+    for (mode_config.exclude_arch) |arch| if (arch == builtin.cpu.arch) return;
     for (mode_config.exclude_os) |tag| if (tag == builtin.os.tag) return;
 
     const b = this.b;

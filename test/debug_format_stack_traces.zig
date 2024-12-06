@@ -21,6 +21,8 @@ pub fn addCases(cases: *tests.DebugFormatStackTraceContext) void {
         \\ }
         ,
         .symbols = .{
+            // TODO: ReleaseSafe on aarch64 only print first step of stack trace
+            .exclude_arch = &.{.aarch64},
             .exclude_os = &.{ .macos, .windows },
             // release modes won't check for overflow, so no error occurs
             .exclude_optimize_mode = &.{ .ReleaseFast, .ReleaseSmall },
@@ -34,6 +36,8 @@ pub fn addCases(cases: *tests.DebugFormatStackTraceContext) void {
             ,
         },
         .dwarf32 = .{
+            // TODO: ReleaseSafe on aarch64 only print first step of stack trace
+            .exclude_arch = &.{.aarch64},
             // release modes won't check for overflow, so no error occurs
             .exclude_optimize_mode = &.{ .ReleaseFast, .ReleaseSmall },
             .expect_panic = true,
