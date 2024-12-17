@@ -64,12 +64,12 @@ rdynamic: bool,
 san_cov_trace_pc_guard: bool,
 
 pub const CFrontend = enum { clang, aro };
-
 pub const LtoMode = enum { none, full, thin };
 
-pub const DebugFormat = union(enum) {
+pub const DebugFormat = enum {
     strip,
-    dwarf: std.dwarf.Format,
+    dwarf32,
+    dwarf64,
     code_view,
 };
 
@@ -445,11 +445,11 @@ pub fn resolve(options: Options) ResolveError!Config {
         if (root_strip and !options.any_non_stripped) break :b .strip;
         if (options.debug_format) |x| break :b x;
         break :b switch (target.ofmt) {
-            .elf, .goff, .macho, .wasm, .xcoff => .{ .dwarf = .@"32" },
+            .elf, .goff, .macho, .wasm, .xcoff => .dwarf32,
             .coff => .code_view,
             .c => switch (target.os.tag) {
                 .windows, .uefi => .code_view,
-                else => .{ .dwarf = .@"32" },
+                else => .dwarf32,
             },
             .spirv, .nvptx, .hex, .raw, .plan9 => .strip,
         };

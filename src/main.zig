@@ -1551,9 +1551,9 @@ fn buildOutputType(
                     } else if (mem.eql(u8, arg, "-fno-strip")) {
                         mod_opts.strip = false;
                     } else if (mem.eql(u8, arg, "-gdwarf32")) {
-                        create_module.opts.debug_format = .{ .dwarf = .@"32" };
+                        create_module.opts.debug_format = .dwarf32;
                     } else if (mem.eql(u8, arg, "-gdwarf64")) {
-                        create_module.opts.debug_format = .{ .dwarf = .@"64" };
+                        create_module.opts.debug_format = .dwarf64;
                     } else if (mem.eql(u8, arg, "-fformatted-panics")) {
                         // Remove this after 0.15.0 is tagged.
                         warn("-fformatted-panics is deprecated and does nothing", .{});
@@ -2187,11 +2187,11 @@ fn buildOutputType(
                     },
                     .gdwarf32 => {
                         mod_opts.strip = false;
-                        create_module.opts.debug_format = .{ .dwarf = .@"32" };
+                        create_module.opts.debug_format = .dwarf32;
                     },
                     .gdwarf64 => {
                         mod_opts.strip = false;
-                        create_module.opts.debug_format = .{ .dwarf = .@"64" };
+                        create_module.opts.debug_format = .dwarf64;
                     },
                     .sanitize => {
                         var san_it = std.mem.splitScalar(u8, it.only_arg, ',');

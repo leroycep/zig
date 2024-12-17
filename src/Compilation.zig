@@ -893,20 +893,6 @@ pub const cache_helpers = struct {
         addEmitLoc(hh, optional_emit_loc orelse return);
     }
 
-    pub fn addOptionalDebugFormat(hh: *Cache.HashHelper, x: ?Config.DebugFormat) void {
-        hh.add(x != null);
-        addDebugFormat(hh, x orelse return);
-    }
-
-    pub fn addDebugFormat(hh: *Cache.HashHelper, x: Config.DebugFormat) void {
-        const tag: @typeInfo(Config.DebugFormat).@"union".tag_type.? = x;
-        hh.add(tag);
-        switch (x) {
-            .strip, .code_view => {},
-            .dwarf => |f| hh.add(f),
-        }
-    }
-
     pub fn hashCSource(self: *Cache.Manifest, c_source: CSourceFile) !void {
         _ = try self.addFile(c_source.src_path, null);
         // Hash the extra flags, with special care to call addFile for file parameters.
@@ -1377,7 +1363,7 @@ pub fn create(gpa: Allocator, arena: Allocator, options: CreateOptions) !*Compil
         cache.hash.add(options.config.link_libcpp);
         cache.hash.add(options.config.link_libunwind);
         cache.hash.add(output_mode);
-        cache_helpers.addDebugFormat(&cache.hash, options.config.debug_format);
+        cache.hash.add(options.config.debug_format);
         cache_helpers.addOptionalEmitLoc(&cache.hash, options.emit_bin);
         cache_helpers.addOptionalEmitLoc(&cache.hash, options.emit_implib);
         cache_helpers.addOptionalEmitLoc(&cache.hash, options.emit_docs);
@@ -5535,12 +5521,11 @@ pub fn addCCArgs(
             // generation, it only changes the type of information generated.
             argv.appendSliceAssumeCapacity(&.{ "-g", "-gcodeview" });
         },
-        .dwarf => |f| {
-            argv.appendAssumeCapacity("-gdwarf-4");
-            switch (f) {
-                .@"32" => argv.appendAssumeCapacity("-gdwarf32"),
-                .@"64" => argv.appendAssumeCapacity("-gdwarf64"),
-            }
+        .dwarf32 => {
+            argv.appendSliceAssumeCapacity(&.{ "-gdwarf-4", "-gdwarf32" });
+        },
+        .dwarf64 => {
+            argv.appendSliceAssumeCapacity(&.{ "-gdwarf-4", "-gdwarf64" });
         },
     }
 

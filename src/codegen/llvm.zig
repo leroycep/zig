@@ -1158,20 +1158,24 @@ pub const Object = struct {
 
                 switch (comp.config.debug_format) {
                     .strip => unreachable,
-                    .dwarf => |f| {
+                    .dwarf32 => {
                         module_flags.appendAssumeCapacity(try o.builder.metadataModuleFlag(
                             behavior_max,
                             try o.builder.metadataString("Dwarf Version"),
                             try o.builder.metadataConstant(try o.builder.intConst(.i32, 4)),
                         ));
-
-                        if (f == .@"64") {
-                            module_flags.appendAssumeCapacity(try o.builder.metadataModuleFlag(
-                                behavior_max,
-                                try o.builder.metadataString("DWARF64"),
-                                try o.builder.metadataConstant(.@"1"),
-                            ));
-                        }
+                    },
+                    .dwarf64 => {
+                        module_flags.appendAssumeCapacity(try o.builder.metadataModuleFlag(
+                            behavior_max,
+                            try o.builder.metadataString("Dwarf Version"),
+                            try o.builder.metadataConstant(try o.builder.intConst(.i32, 4)),
+                        ));
+                        module_flags.appendAssumeCapacity(try o.builder.metadataModuleFlag(
+                            behavior_max,
+                            try o.builder.metadataString("DWARF64"),
+                            try o.builder.metadataConstant(.@"1"),
+                        ));
                     },
                     .code_view => {
                         module_flags.appendAssumeCapacity(try o.builder.metadataModuleFlag(
