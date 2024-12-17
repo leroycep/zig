@@ -27,7 +27,7 @@ const TestTarget = struct {
     use_llvm: ?bool = null,
     use_lld: ?bool = null,
     pic: ?bool = null,
-    strip: ?bool = null,
+    debug_format: ?std.Build.Module.DebugFormat = null,
     skip_modules: []const []const u8 = &.{},
 
     // This is intended for targets that are known to be slow to compile. These are acceptable to
@@ -121,7 +121,7 @@ const test_targets = blk: {
             },
             .use_llvm = false,
             .use_lld = false,
-            .strip = true,
+            .debug_format = .none,
         },
         // Doesn't support new liveness
         //.{
@@ -898,7 +898,7 @@ const CAbiTarget = struct {
     use_llvm: ?bool = null,
     use_lld: ?bool = null,
     pic: ?bool = null,
-    strip: ?bool = null,
+    debug_format: ?std.Build.Module.DebugFormat = null,
     c_defines: []const []const u8 = &.{},
 };
 
@@ -930,7 +930,7 @@ const c_abi_targets = [_]CAbiTarget{
         },
         .use_llvm = false,
         .use_lld = false,
-        .strip = true,
+        .debug_format = .none,
         .c_defines = &.{"ZIG_BACKEND_STAGE2_X86_64"},
     },
     .{
@@ -1190,7 +1190,7 @@ pub fn addCliTests(b: *std.Build) *Step {
             "--cache-dir",   tmp_path,
             "--name",        "example",
             "-fno-emit-bin", "-fno-emit-h",
-            "-fstrip",       "-OReleaseFast",
+            "-g0",           "-OReleaseFast",
         });
         run.addFileArg(example_zig);
         const example_s = run.addPrefixedOutputFileArg("-femit-asm=", "example.s");
@@ -1464,7 +1464,7 @@ pub fn addModuleTests(b: *std.Build, options: ModuleTestOptions) *Step {
                 .target = resolved_target,
                 .link_libc = test_target.link_libc,
                 .pic = test_target.pic,
-                .strip = test_target.strip,
+                .debug_format = test_target.debug_format,
                 .single_threaded = test_target.single_threaded,
             }),
             .max_rss = max_rss,
@@ -1632,7 +1632,7 @@ pub fn addCAbiTests(b: *std.Build, options: CAbiTestOptions) *Step {
                 .optimize = optimize_mode,
                 .link_libc = true,
                 .pic = c_abi_target.pic,
-                .strip = c_abi_target.strip,
+                .debug_format = c_abi_target.debug_format,
             });
             test_mod.addCSourceFile(.{
                 .file = b.path("test/c_abi/cfuncs.c"),

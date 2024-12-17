@@ -8,7 +8,6 @@ import_table: std.StringArrayHashMapUnmanaged(*Module),
 
 resolved_target: ?std.Build.ResolvedTarget = null,
 optimize: ?std.builtin.OptimizeMode = null,
-dwarf_format: ?std.dwarf.Format,
 
 c_macros: std.ArrayListUnmanaged([]const u8),
 include_dirs: std.ArrayListUnmanaged(IncludeDir),
@@ -17,7 +16,7 @@ rpaths: std.ArrayListUnmanaged(RPath),
 frameworks: std.StringArrayHashMapUnmanaged(LinkFrameworkOptions),
 link_objects: std.ArrayListUnmanaged(LinkObject),
 
-strip: ?bool,
+debug_format: ?DebugFormat,
 unwind_tables: ?std.builtin.UnwindTables,
 single_threaded: ?bool,
 stack_protector: ?bool,
@@ -40,6 +39,15 @@ export_symbol_names: []const []const u8 = &.{},
 /// Caches the result of `getGraph` when called multiple times.
 /// Use `getGraph` instead of accessing this field directly.
 cached_graph: Graph = .{ .modules = &.{}, .names = &.{} },
+
+pub const DebugFormat = enum {
+    none,
+    native,
+    symbols,
+    dwarf32,
+    dwarf64,
+    codeview,
+};
 
 pub const RPath = union(enum) {
     lazy_path: LazyPath,
@@ -217,9 +225,8 @@ pub const CreateOptions = struct {
     /// `null` neither requires nor prevents libc++ from being linked.
     link_libcpp: ?bool = null,
     single_threaded: ?bool = null,
-    strip: ?bool = null,
+    debug_format: ?DebugFormat = null,
     unwind_tables: ?std.builtin.UnwindTables = null,
-    dwarf_format: ?std.dwarf.Format = null,
     code_model: std.builtin.CodeModel = .default,
     stack_protector: ?bool = null,
     stack_check: ?bool = null,
@@ -259,14 +266,13 @@ pub fn init(
                 .optimize = options.optimize,
                 .link_libc = options.link_libc,
                 .link_libcpp = options.link_libcpp,
-                .dwarf_format = options.dwarf_format,
+                .debug_format = options.debug_format,
                 .c_macros = .{},
                 .include_dirs = .{},
                 .lib_paths = .{},
                 .rpaths = .{},
                 .frameworks = .{},
                 .link_objects = .{},
-                .strip = options.strip,
                 .unwind_tables = options.unwind_tables,
                 .single_threaded = options.single_threaded,
                 .stack_protector = options.stack_protector,
@@ -512,7 +518,6 @@ pub fn appendZigProcessFlags(
 ) !void {
     const b = m.owner;
 
-    try addFlag(zig_args, m.strip, "-fstrip", "-fno-strip");
     try addFlag(zig_args, m.single_threaded, "-fsingle-threaded", "-fno-single-threaded");
     try addFlag(zig_args, m.stack_check, "-fstack-check", "-fno-stack-check");
     try addFlag(zig_args, m.stack_protector, "-fstack-protector", "-fno-stack-protector");
@@ -525,10 +530,14 @@ pub fn appendZigProcessFlags(
     try addFlag(zig_args, m.pic, "-fPIC", "-fno-PIC");
     try addFlag(zig_args, m.red_zone, "-mred-zone", "-mno-red-zone");
 
-    if (m.dwarf_format) |dwarf_format| {
-        try zig_args.append(switch (dwarf_format) {
-            .@"32" => "-gdwarf32",
-            .@"64" => "-gdwarf64",
+    if (m.debug_format) |debug_format| {
+        try zig_args.append(switch (debug_format) {
+            .native => "-g",
+            .none => "-g0",
+            .symbols => "-gsymbols",
+            .dwarf32 => "-gdwarf32",
+            .dwarf64 => "-gdwarf64",
+            .codeview => "-gcodeview",
         });
     }
 

@@ -5515,8 +5515,9 @@ pub fn addCCArgs(
 
     try argv.ensureUnusedCapacity(2);
     switch (comp.config.debug_format) {
-        .strip => {},
-        .code_view => {
+        .none => {},
+        .symbols => {},
+        .codeview => {
             // -g is required here because -gcodeview doesn't trigger debug info
             // generation, it only changes the type of information generated.
             argv.appendSliceAssumeCapacity(&.{ "-g", "-gcodeview" });

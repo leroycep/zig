@@ -529,8 +529,13 @@ const usage_build_generic =
     \\  -fno-error-tracing        Disable error tracing in Debug and ReleaseSafe mode
     \\  -fsingle-threaded         Code assumes there is only one thread
     \\  -fno-single-threaded      Code may not assume there is only one thread
-    \\  -fstrip                   Omit debug symbols
-    \\  -fno-strip                Keep debug symbols
+    \\  -g                        Emit debug info
+    \\  -g0                       Omit debug info
+    \\  -g[format]                Debug info format
+    \\    symbols                 Only use object format's symbol table
+    \\    dwarf32                 Use 32-bit DWARF
+    \\    dwarf64                 Use 64-bit DWARF
+    \\    codeview                (Windows) Use CodeView
     \\  -idirafter [dir]          Add directory to AFTER include search path
     \\  -isystem  [dir]           Add directory to SYSTEM include search path
     \\  -I[dir]                   Add directory to include search path
@@ -1546,14 +1551,18 @@ fn buildOutputType(
                     } else if (mem.eql(u8, arg, "--show-builtin")) {
                         show_builtin = true;
                         emit_bin = .no;
-                    } else if (mem.eql(u8, arg, "-fstrip")) {
-                        mod_opts.strip = true;
-                    } else if (mem.eql(u8, arg, "-fno-strip")) {
-                        mod_opts.strip = false;
+                    } else if (mem.eql(u8, arg, "-g")) {
+                        create_module.opts.debug_format = .native;
+                    } else if (mem.eql(u8, arg, "-g0")) {
+                        create_module.opts.debug_format = .none;
+                    } else if (mem.eql(u8, arg, "-gsymbols")) {
+                        create_module.opts.debug_format = .symbols;
                     } else if (mem.eql(u8, arg, "-gdwarf32")) {
                         create_module.opts.debug_format = .dwarf32;
                     } else if (mem.eql(u8, arg, "-gdwarf64")) {
                         create_module.opts.debug_format = .dwarf64;
+                    } else if (mem.eql(u8, arg, "-gcodeview")) {
+                        create_module.opts.debug_format = .codeview;
                     } else if (mem.eql(u8, arg, "-fformatted-panics")) {
                         // Remove this after 0.15.0 is tagged.
                         warn("-fformatted-panics is deprecated and does nothing", .{});

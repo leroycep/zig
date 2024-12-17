@@ -20,7 +20,7 @@ fn add(b: *std.Build, test_step: *std.Build.Step, optimize_mode: std.builtin.Opt
                 .os_tag = .freestanding,
             }),
             .optimize = optimize_mode,
-            .strip = false,
+            .debug_format = .native,
             .single_threaded = false,
         }),
     });

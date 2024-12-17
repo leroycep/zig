@@ -67,10 +67,22 @@ pub const CFrontend = enum { clang, aro };
 pub const LtoMode = enum { none, full, thin };
 
 pub const DebugFormat = enum {
-    strip,
+    none,
+    symbols,
     dwarf32,
     dwarf64,
-    code_view,
+    codeview,
+
+    /// user facing debug format which allows specifying `native`, which is resolved to a concrete format later.
+    pub const UserFacing = enum {
+        none,
+        native,
+
+        symbols,
+        dwarf32,
+        dwarf64,
+        codeview,
+    };
 };
 
 pub const Options = struct {
@@ -109,7 +121,7 @@ pub const Options = struct {
     import_memory: ?bool = null,
     export_memory: ?bool = null,
     shared_memory: ?bool = null,
-    debug_format: ?DebugFormat = null,
+    debug_format: ?DebugFormat.UserFacing = null,
     dll_export_fns: ?bool = null,
     rdynamic: ?bool = null,
     san_cov_trace_pc_guard: bool = false,
@@ -442,16 +454,28 @@ pub fn resolve(options: Options) ResolveError!Config {
     };
 
     const debug_format: DebugFormat = b: {
-        if (root_strip and !options.any_non_stripped) break :b .strip;
-        if (options.debug_format) |x| break :b x;
+        if (root_strip and !options.any_non_stripped) break :b .none;
+        if (options.debug_format) |debug_format| {
+            switch (debug_format) {
+                .native => {
+                    // base debug_format on `ofmt`, see `switch (target.ofmt)` below
+                },
+
+                .none => break :b .none,
+                .symbols => break :b .symbols,
+                .dwarf32 => break :b .dwarf32,
+                .dwarf64 => break :b .dwarf64,
+                .codeview => break :b .codeview,
+            }
+        }
         break :b switch (target.ofmt) {
             .elf, .goff, .macho, .wasm, .xcoff => .dwarf32,
-            .coff => .code_view,
+            .coff => .codeview,
             .c => switch (target.os.tag) {
-                .windows, .uefi => .code_view,
+                .windows, .uefi => .codeview,
                 else => .dwarf32,
             },
-            .spirv, .nvptx, .hex, .raw, .plan9 => .strip,
+            .spirv, .nvptx, .hex, .raw, .plan9 => .none,
         };
     };
 

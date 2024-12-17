@@ -2989,7 +2989,7 @@ fn testStrip(b: *Build, opts: Options) *Step {
     {
         const exe = addExecutable(b, opts, .{ .name = "main1" });
         exe.addObject(obj);
-        exe.root_module.strip = false;
+        exe.root_module.debug_format = .native;
         exe.linkLibC();
 
         const check = exe.checkObject();
@@ -3002,7 +3002,7 @@ fn testStrip(b: *Build, opts: Options) *Step {
     {
         const exe = addExecutable(b, opts, .{ .name = "main2" });
         exe.addObject(obj);
-        exe.root_module.strip = true;
+        exe.root_module.debug_format = .none;
         exe.linkLibC();
 
         const check = exe.checkObject();

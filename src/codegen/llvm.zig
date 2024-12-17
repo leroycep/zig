@@ -851,7 +851,7 @@ pub const Object = struct {
 
         var builder = try Builder.init(.{
             .allocator = gpa,
-            .strip = comp.config.debug_format == .strip,
+            .strip = comp.config.debug_format == .none,
             .name = comp.root_name,
             .target = target,
             .triple = llvm_target_triple,
@@ -1157,7 +1157,8 @@ pub const Object = struct {
                 ));
 
                 switch (comp.config.debug_format) {
-                    .strip => unreachable,
+                    .none => unreachable,
+                    .symbols => {},
                     .dwarf32 => {
                         module_flags.appendAssumeCapacity(try o.builder.metadataModuleFlag(
                             behavior_max,
@@ -1177,7 +1178,7 @@ pub const Object = struct {
                             try o.builder.metadataConstant(.@"1"),
                         ));
                     },
-                    .code_view => {
+                    .codeview => {
                         module_flags.appendAssumeCapacity(try o.builder.metadataModuleFlag(
                             behavior_warning,
                             try o.builder.metadataString("CodeView"),

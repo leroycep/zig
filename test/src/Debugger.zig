@@ -2448,7 +2448,7 @@ fn addTest(
         .link_libc = target.link_libc,
         .single_threaded = target.single_threaded,
         .pic = target.pic,
-        .strip = false,
+        .debug_format = .native,
     });
     for (files[1..]) |file| {
         const path = files_wf.add(file.path, file.source);

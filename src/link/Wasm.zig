@@ -4011,7 +4011,7 @@ fn linkWithLLD(wasm: *Wasm, arena: Allocator, tid: Zcu.PerThread.Id, prog_node: 
             try argv.append("--no-gc-sections");
         }
 
-        if (comp.config.debug_format == .strip) {
+        if (comp.config.debug_format == .none) {
             try argv.append("-s");
         }
 

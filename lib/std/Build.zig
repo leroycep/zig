@@ -720,7 +720,7 @@ pub const ExecutableOptions = struct {
     /// Deprecated; prefer populating `root_module`.
     pic: ?bool = null,
     /// Deprecated; prefer populating `root_module`.
-    strip: ?bool = null,
+    debug_format: ?std.Build.Module.DebugFormat = null,
     /// Deprecated; prefer populating `root_module`.
     unwind_tables: ?std.builtin.UnwindTables = null,
     /// Deprecated; prefer populating `root_module`.
@@ -744,7 +744,7 @@ pub fn addExecutable(b: *Build, options: ExecutableOptions) *Step.Compile {
             .link_libc = options.link_libc,
             .single_threaded = options.single_threaded,
             .pic = options.pic,
-            .strip = options.strip,
+            .debug_format = options.debug_format,
             .unwind_tables = options.unwind_tables,
             .omit_frame_pointer = options.omit_frame_pointer,
             .sanitize_thread = options.sanitize_thread,
@@ -789,7 +789,7 @@ pub const ObjectOptions = struct {
     /// Deprecated; prefer populating `root_module`.
     pic: ?bool = null,
     /// Deprecated; prefer populating `root_module`.
-    strip: ?bool = null,
+    debug_format: ?std.Build.Module.DebugFormat = null,
     /// Deprecated; prefer populating `root_module`.
     unwind_tables: ?std.builtin.UnwindTables = null,
     /// Deprecated; prefer populating `root_module`.
@@ -813,7 +813,7 @@ pub fn addObject(b: *Build, options: ObjectOptions) *Step.Compile {
             .link_libc = options.link_libc,
             .single_threaded = options.single_threaded,
             .pic = options.pic,
-            .strip = options.strip,
+            .debug_format = options.debug_format,
             .unwind_tables = options.unwind_tables,
             .omit_frame_pointer = options.omit_frame_pointer,
             .sanitize_thread = options.sanitize_thread,
@@ -862,7 +862,7 @@ pub const SharedLibraryOptions = struct {
     /// Deprecated; prefer populating `root_module`.
     pic: ?bool = null,
     /// Deprecated; prefer populating `root_module`.
-    strip: ?bool = null,
+    debug_format: ?std.Build.Module.DebugFormat = null,
     /// Deprecated; prefer populating `root_module`.
     unwind_tables: ?std.builtin.UnwindTables = null,
     /// Deprecated; prefer populating `root_module`.
@@ -887,7 +887,7 @@ pub fn addSharedLibrary(b: *Build, options: SharedLibraryOptions) *Step.Compile 
             .link_libc = options.link_libc,
             .single_threaded = options.single_threaded,
             .pic = options.pic,
-            .strip = options.strip,
+            .debug_format = options.debug_format,
             .unwind_tables = options.unwind_tables,
             .omit_frame_pointer = options.omit_frame_pointer,
             .sanitize_thread = options.sanitize_thread,
@@ -933,7 +933,7 @@ pub const StaticLibraryOptions = struct {
     /// Deprecated; prefer populating `root_module`.
     pic: ?bool = null,
     /// Deprecated; prefer populating `root_module`.
-    strip: ?bool = null,
+    debug_format: ?std.Build.Module.DebugFormat = null,
     /// Deprecated; prefer populating `root_module`.
     unwind_tables: ?std.builtin.UnwindTables = null,
     /// Deprecated; prefer populating `root_module`.
@@ -958,7 +958,7 @@ pub fn addStaticLibrary(b: *Build, options: StaticLibraryOptions) *Step.Compile 
             .link_libc = options.link_libc,
             .single_threaded = options.single_threaded,
             .pic = options.pic,
-            .strip = options.strip,
+            .debug_format = options.debug_format,
             .unwind_tables = options.unwind_tables,
             .omit_frame_pointer = options.omit_frame_pointer,
             .sanitize_thread = options.sanitize_thread,
@@ -1040,7 +1040,7 @@ pub const TestOptions = struct {
     /// Deprecated; prefer populating `root_module`.
     pic: ?bool = null,
     /// Deprecated; prefer populating `root_module`.
-    strip: ?bool = null,
+    debug_format: ?std.Build.Module.DebugFormat = null,
     /// Deprecated; prefer populating `root_module`.
     unwind_tables: ?std.builtin.UnwindTables = null,
     /// Deprecated; prefer populating `root_module`.
@@ -1074,7 +1074,7 @@ pub fn addTest(b: *Build, options: TestOptions) *Step.Compile {
             .link_libcpp = options.link_libcpp,
             .single_threaded = options.single_threaded,
             .pic = options.pic,
-            .strip = options.strip,
+            .debug_format = options.debug_format,
             .unwind_tables = options.unwind_tables,
             .omit_frame_pointer = options.omit_frame_pointer,
             .sanitize_thread = options.sanitize_thread,

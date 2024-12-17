@@ -97,7 +97,8 @@ pub fn init(self: *ZigObject, elf_file: *Elf, options: InitOptions) !void {
     }
 
     switch (comp.config.debug_format) {
-        .strip => {},
+        .none => {},
+        .symbols => {},
         .dwarf32, .dwarf64 => |v| {
             var dwarf = Dwarf.init(&elf_file.base, switch (v) {
                 .dwarf32 => .@"32",
@@ -228,7 +229,7 @@ pub fn init(self: *ZigObject, elf_file: *Elf, options: InitOptions) !void {
             try dwarf.initMetadata();
             self.dwarf = dwarf;
         },
-        .code_view => unreachable,
+        .codeview => unreachable,
     }
 }
 

@@ -96,7 +96,7 @@ fn createModule(b: *Build, base: Options, overlay: OverlayOptions) *Build.Module
             break :rsf write_files.add(name, bytes);
         },
         .pic = overlay.pic,
-        .strip = if (base.strip) |s| s else overlay.strip,
+        .debug_format = if (base.strip orelse overlay.strip orelse false) .none else null,
     });
 
     if (overlay.objcpp_source_bytes) |bytes| {
