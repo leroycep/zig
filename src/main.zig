@@ -1551,19 +1551,23 @@ fn buildOutputType(
                     } else if (mem.eql(u8, arg, "--show-builtin")) {
                         show_builtin = true;
                         emit_bin = .no;
-                    } else if (mem.eql(u8, arg, "-g")) {
-                        create_module.opts.debug_format = .native;
-                    } else if (mem.eql(u8, arg, "-g0")) {
-                        create_module.opts.root_strip = true;
-                        create_module.opts.debug_format = .none;
-                    } else if (mem.eql(u8, arg, "-gsymbols")) {
-                        create_module.opts.debug_format = .symbols;
-                    } else if (mem.eql(u8, arg, "-gdwarf32")) {
-                        create_module.opts.debug_format = .dwarf32;
-                    } else if (mem.eql(u8, arg, "-gdwarf64")) {
-                        create_module.opts.debug_format = .dwarf64;
-                    } else if (mem.eql(u8, arg, "-gcodeview")) {
-                        create_module.opts.debug_format = .codeview;
+                    } else if (mem.startsWith(u8, arg, "-g")) {
+                        if (mem.eql(u8, arg, "-g")) {
+                            create_module.opts.debug_format = .native;
+                        } else if (mem.eql(u8, arg, "-g0")) {
+                            mod_opts.strip = true;
+                            create_module.opts.debug_format = .none;
+                        } else if (mem.eql(u8, arg, "-gsymbols")) {
+                            create_module.opts.debug_format = .symbols;
+                        } else if (mem.eql(u8, arg, "-gdwarf32")) {
+                            create_module.opts.debug_format = .dwarf32;
+                        } else if (mem.eql(u8, arg, "-gdwarf64")) {
+                            create_module.opts.debug_format = .dwarf64;
+                        } else if (mem.eql(u8, arg, "-gcodeview")) {
+                            create_module.opts.debug_format = .codeview;
+                        } else {
+                            fatal("unknown debug option '{s}'", .{arg});
+                        }
                     } else if (mem.eql(u8, arg, "-fformatted-panics")) {
                         // Remove this after 0.15.0 is tagged.
                         warn("-fformatted-panics is deprecated and does nothing", .{});
@@ -2183,13 +2187,14 @@ fn buildOutputType(
                         }
                     },
                     .debug => {
-                        mod_opts.strip = false;
-                        if (mem.eql(u8, it.only_arg, "g")) {
-                            // We handled with strip = false above.
+                        if (mem.eql(u8, it.only_arg, "g0")) {
+                            mod_opts.strip = true;
+                        } else if (mem.eql(u8, it.only_arg, "g")) {
+                            mod_opts.strip = false;
                         } else if (mem.eql(u8, it.only_arg, "g1") or
                             mem.eql(u8, it.only_arg, "gline-tables-only"))
                         {
-                            // We handled with strip = false above. but we also want reduced debug info.
+                            mod_opts.strip = false;
                             try cc_argv.append(arena, "-gline-tables-only");
                         } else {
                             try cc_argv.appendSlice(arena, it.other_args);
