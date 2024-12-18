@@ -1861,7 +1861,7 @@ fn linkWithLLD(coff: *Coff, arena: Allocator, tid: Zcu.PerThread.Id, prog_node: 
 
         try argv.append("-ERRORLIMIT:0");
         try argv.append("-NOLOGO");
-        if (comp.config.debug_format != .none) {
+        if (comp.config.debug_format != .none and comp.config.debug_format != .symbols) {
             try argv.append("-DEBUG");
 
             const out_ext = std.fs.path.extension(full_out_path);
