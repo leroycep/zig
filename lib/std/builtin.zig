@@ -150,6 +150,16 @@ pub const CodeModel = enum {
 
 /// This data structure is used by the Zig language code generation and
 /// therefore must be kept in sync with the compiler implementation.
+pub const DebugFormat = enum {
+    none,
+    symbols,
+    dwarf32,
+    dwarf64,
+    codeview,
+};
+
+/// This data structure is used by the Zig language code generation and
+/// therefore must be kept in sync with the compiler implementation.
 pub const OptimizeMode = enum {
     Debug,
     ReleaseSafe,

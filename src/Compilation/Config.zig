@@ -56,7 +56,7 @@ import_memory: bool,
 export_memory: bool,
 shared_memory: bool,
 is_test: bool,
-debug_format: DebugFormat,
+debug_format: std.builtin.DebugFormat,
 root_strip: bool,
 root_error_tracing: bool,
 dll_export_fns: bool,
@@ -66,23 +66,15 @@ san_cov_trace_pc_guard: bool,
 pub const CFrontend = enum { clang, aro };
 pub const LtoMode = enum { none, full, thin };
 
-pub const DebugFormat = enum {
+/// user facing debug format which allows specifying `native`, which is resolved to a concrete format later.
+pub const UserFacingDebugFormat = enum {
     none,
+    native,
+
     symbols,
     dwarf32,
     dwarf64,
     codeview,
-
-    /// user facing debug format which allows specifying `native`, which is resolved to a concrete format later.
-    pub const UserFacing = enum {
-        none,
-        native,
-
-        symbols,
-        dwarf32,
-        dwarf64,
-        codeview,
-    };
 };
 
 pub const Options = struct {
@@ -121,7 +113,7 @@ pub const Options = struct {
     import_memory: ?bool = null,
     export_memory: ?bool = null,
     shared_memory: ?bool = null,
-    debug_format: ?DebugFormat.UserFacing = null,
+    debug_format: ?UserFacingDebugFormat = null,
     dll_export_fns: ?bool = null,
     rdynamic: ?bool = null,
     san_cov_trace_pc_guard: bool = false,
@@ -453,7 +445,7 @@ pub fn resolve(options: Options) ResolveError!Config {
         break :b false;
     };
 
-    const debug_format: DebugFormat = b: {
+    const debug_format: std.builtin.DebugFormat = b: {
         if (root_strip and !options.any_non_stripped) break :b .none;
         if (options.debug_format) |debug_format| {
             switch (debug_format) {
