@@ -1554,6 +1554,7 @@ fn buildOutputType(
                     } else if (mem.eql(u8, arg, "-g")) {
                         create_module.opts.debug_format = .native;
                     } else if (mem.eql(u8, arg, "-g0")) {
+                        create_module.opts.root_strip = true;
                         create_module.opts.debug_format = .none;
                     } else if (mem.eql(u8, arg, "-gsymbols")) {
                         create_module.opts.debug_format = .symbols;
