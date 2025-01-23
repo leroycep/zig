@@ -855,7 +855,7 @@ pub const cache_helpers = struct {
         hh.add(mod.error_tracing);
         hh.add(mod.valgrind);
         hh.add(mod.pic);
-        hh.add(mod.strip);
+        hh.add(mod.debug_format);
         hh.add(mod.omit_frame_pointer);
         hh.add(mod.stack_check);
         hh.add(mod.red_zone);
@@ -6432,7 +6432,7 @@ fn buildOutputFromZig(
 
     assert(output_mode != .Exe);
 
-    const strip = comp.compilerRtStrip();
+    const debug_format = comp.compilerRtDebugFormat();
     const optimize_mode = comp.compilerRtOptMode();
 
     const config = try Config.resolve(.{
@@ -6443,7 +6443,13 @@ fn buildOutputFromZig(
         .have_zcu = true,
         .emit_bin = true,
         .root_optimize_mode = optimize_mode,
-        .root_strip = strip,
+        .debug_format = switch (debug_format) {
+            .none => .none,
+            .symbols => .symbols,
+            .dwarf32 => .dwarf32,
+            .dwarf64 => .dwarf64,
+            .codeview => .codeview,
+        },
         .link_libc = comp.config.link_libc,
     });
 
@@ -6456,7 +6462,7 @@ fn buildOutputFromZig(
         .fully_qualified_name = "root",
         .inherited = .{
             .resolved_target = comp.root_mod.resolved_target,
-            .strip = strip,
+            .debug_format = debug_format,
             .stack_check = false,
             .stack_protector = 0,
             .red_zone = comp.root_mod.red_zone,
@@ -6579,7 +6585,13 @@ pub fn build_crt_file(
         .have_zcu = false,
         .emit_bin = true,
         .root_optimize_mode = comp.compilerRtOptMode(),
-        .root_strip = comp.compilerRtStrip(),
+        .debug_format = switch (comp.compilerRtDebugFormat()) {
+            .none => .none,
+            .symbols => .symbols,
+            .dwarf32 => .dwarf32,
+            .dwarf64 => .dwarf64,
+            .codeview => .codeview,
+        },
         .link_libc = false,
         .lto = switch (output_mode) {
             .Lib => comp.config.lto,
@@ -6595,7 +6607,7 @@ pub fn build_crt_file(
         .fully_qualified_name = "root",
         .inherited = .{
             .resolved_target = comp.root_mod.resolved_target,
-            .strip = comp.compilerRtStrip(),
+            .debug_format = comp.compilerRtDebugFormat(),
             .stack_check = false,
             .stack_protector = 0,
             .sanitize_c = false,
@@ -6763,8 +6775,8 @@ pub fn compilerRtOptMode(comp: Compilation) std.builtin.OptimizeMode {
 
 /// This decides whether to strip debug info for all zig-provided libraries, including
 /// compiler-rt, libcxx, libc, libunwind, etc.
-pub fn compilerRtStrip(comp: Compilation) bool {
-    return comp.root_mod.strip;
+pub fn compilerRtDebugFormat(comp: Compilation) std.builtin.DebugFormat {
+    return comp.root_mod.debug_format;
 }
 
 fn testAndClear(b: *bool) bool {

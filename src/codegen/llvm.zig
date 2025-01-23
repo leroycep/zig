@@ -851,7 +851,7 @@ pub const Object = struct {
 
         var builder = try Builder.init(.{
             .allocator = gpa,
-            .strip = comp.config.debug_format == .none,
+            .debug_format = comp.config.debug_format,
             .name = comp.root_name,
             .target = target,
             .triple = llvm_target_triple,
@@ -861,7 +861,7 @@ pub const Object = struct {
         builder.data_layout = try builder.fmt("{}", .{DataLayoutBuilder{ .target = target }});
 
         const debug_compile_unit, const debug_enums_fwd_ref, const debug_globals_fwd_ref =
-            if (!builder.strip)
+            if (builder.debug_format != .none and builder.debug_format != .symbols)
         debug_info: {
             // We fully resolve all paths at this point to avoid lack of
             // source line info in stack traces or lack of debugging
@@ -1018,7 +1018,7 @@ pub const Object = struct {
 
         var wip = try Builder.WipFunction.init(&o.builder, .{
             .function = llvm_fn.ptrConst(&o.builder).kind.function,
-            .strip = true,
+            .debug_format = .none,
         });
         defer wip.deinit();
         wip.cursor = .{ .block = try wip.block(0, "Entry") };
@@ -1082,7 +1082,7 @@ pub const Object = struct {
                 try compiler_used_variable.setInitializer(init_val, &o.builder);
             }
 
-            if (!o.builder.strip) {
+            if (o.builder.debug_format != .none and o.builder.debug_format != .symbols) {
                 {
                     var i: usize = 0;
                     while (i < o.debug_unresolved_namespace_scopes.count()) : (i += 1) {
@@ -1149,7 +1149,7 @@ pub const Object = struct {
                 ));
             }
 
-            if (!o.builder.strip) {
+            if (o.builder.debug_format != .none and o.builder.debug_format != .symbols) {
                 module_flags.appendAssumeCapacity(try o.builder.metadataModuleFlag(
                     behavior_warning,
                     try o.builder.metadataString("Debug Info Version"),
@@ -1482,7 +1482,7 @@ pub const Object = struct {
         var deinit_wip = true;
         var wip = try Builder.WipFunction.init(&o.builder, .{
             .function = function_index,
-            .strip = owner_mod.strip,
+            .debug_format = owner_mod.debug_format,
         });
         defer if (deinit_wip) wip.deinit();
         wip.cursor = .{ .block = try wip.block(0, "Entry") };
@@ -1679,7 +1679,7 @@ pub const Object = struct {
 
         function_index.setAttributes(try attributes.finish(&o.builder), &o.builder);
 
-        const file, const subprogram = if (!wip.strip) debug_info: {
+        const file, const subprogram = if (wip.debug_format != .none and wip.debug_format != .symbols) debug_info: {
             const file = try o.getDebugFile(file_scope);
 
             const line_number = zcu.navSrcLine(func.owner_nav) + 1;
@@ -1993,7 +1993,7 @@ pub const Object = struct {
         o: *Object,
         ty: Type,
     ) Allocator.Error!Builder.Metadata {
-        assert(!o.builder.strip);
+        assert(o.builder.debug_format != .none and o.builder.debug_format != .symbols);
 
         const gpa = o.gpa;
         const target = o.target;
@@ -4707,7 +4707,7 @@ pub const Object = struct {
 
         var wip = try Builder.WipFunction.init(&o.builder, .{
             .function = function_index,
-            .strip = true,
+            .debug_format = .none,
         });
         defer wip.deinit();
         wip.cursor = .{ .block = try wip.block(0, "Entry") };
@@ -4807,7 +4807,7 @@ pub const NavGen = struct {
 
             const line_number = zcu.navSrcLine(nav_index) + 1;
 
-            if (!mod.strip) {
+            if (mod.debug_format != .none and mod.debug_format != .symbols) {
                 const debug_file = try o.getDebugFile(file_scope);
 
                 const debug_global_var = try o.builder.debugGlobalVar(
@@ -5343,7 +5343,7 @@ pub const FuncGen = struct {
         body: []const Air.Inst.Index,
         coverage_point: Air.CoveragePoint,
     ) Error!void {
-        if (self.wip.strip) return self.genBody(body, coverage_point);
+        if (self.wip.debug_format == .none or self.wip.debug_format == .symbols) return self.genBody(body, coverage_point);
 
         const old_file = self.file;
         const old_inlined = self.inlined;
@@ -10396,7 +10396,7 @@ pub const FuncGen = struct {
 
         var wip = try Builder.WipFunction.init(&o.builder, .{
             .function = function_index,
-            .strip = true,
+            .debug_format = .none,
         });
         defer wip.deinit();
         wip.cursor = .{ .block = try wip.block(0, "Entry") };

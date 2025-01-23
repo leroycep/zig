@@ -1206,7 +1206,6 @@ fn buildSharedLib(
     const map_file_path = try path.join(arena, &.{ bin_directory.path.?, all_map_basename });
 
     const optimize_mode = comp.compilerRtOptMode();
-    const strip = comp.compilerRtStrip();
     const config = try Compilation.Config.resolve(.{
         .output_mode = .Lib,
         .link_mode = .dynamic,
@@ -1215,7 +1214,13 @@ fn buildSharedLib(
         .have_zcu = false,
         .emit_bin = true,
         .root_optimize_mode = optimize_mode,
-        .root_strip = strip,
+        .debug_format = switch (comp.compilerRtDebugFormat()) {
+            .none => .none,
+            .symbols => .symbols,
+            .dwarf32 => .dwarf32,
+            .dwarf64 => .dwarf64,
+            .codeview => .codeview,
+        },
         .link_libc = false,
     });
 
@@ -1228,7 +1233,6 @@ fn buildSharedLib(
         .fully_qualified_name = "root",
         .inherited = .{
             .resolved_target = comp.root_mod.resolved_target,
-            .strip = strip,
             .stack_check = false,
             .stack_protector = 0,
             .sanitize_c = false,

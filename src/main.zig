@@ -1555,16 +1555,15 @@ fn buildOutputType(
                         if (mem.eql(u8, arg, "-g")) {
                             create_module.opts.debug_format = .native;
                         } else if (mem.eql(u8, arg, "-g0")) {
-                            mod_opts.strip = true;
-                            create_module.opts.debug_format = .none;
+                            mod_opts.debug_format = .none;
                         } else if (mem.eql(u8, arg, "-gsymbols")) {
-                            create_module.opts.debug_format = .symbols;
+                            mod_opts.debug_format = .symbols;
                         } else if (mem.eql(u8, arg, "-gdwarf32")) {
-                            create_module.opts.debug_format = .dwarf32;
+                            mod_opts.debug_format = .dwarf32;
                         } else if (mem.eql(u8, arg, "-gdwarf64")) {
-                            create_module.opts.debug_format = .dwarf64;
+                            mod_opts.debug_format = .dwarf64;
                         } else if (mem.eql(u8, arg, "-gcodeview")) {
-                            create_module.opts.debug_format = .codeview;
+                            mod_opts.debug_format = .codeview;
                         } else {
                             fatal("unknown debug option '{s}'", .{arg});
                         }
@@ -2188,26 +2187,20 @@ fn buildOutputType(
                     },
                     .debug => {
                         if (mem.eql(u8, it.only_arg, "g0")) {
-                            mod_opts.strip = true;
+                            mod_opts.debug_format = .none;
                         } else if (mem.eql(u8, it.only_arg, "g")) {
-                            mod_opts.strip = false;
+                            create_module.opts.debug_format = .native;
                         } else if (mem.eql(u8, it.only_arg, "g1") or
                             mem.eql(u8, it.only_arg, "gline-tables-only"))
                         {
-                            mod_opts.strip = false;
+                            create_module.opts.debug_format = .native;
                             try cc_argv.append(arena, "-gline-tables-only");
                         } else {
                             try cc_argv.appendSlice(arena, it.other_args);
                         }
                     },
-                    .gdwarf32 => {
-                        mod_opts.strip = false;
-                        create_module.opts.debug_format = .dwarf32;
-                    },
-                    .gdwarf64 => {
-                        mod_opts.strip = false;
-                        create_module.opts.debug_format = .dwarf64;
-                    },
+                    .gdwarf32 => mod_opts.debug_format = .dwarf32,
+                    .gdwarf64 => mod_opts.debug_format = .dwarf64,
                     .sanitize => {
                         var san_it = std.mem.splitScalar(u8, it.only_arg, ',');
                         var recognized_any = false;
@@ -2264,7 +2257,7 @@ fn buildOutputType(
                     .framework_dir => try create_module.framework_dirs.append(arena, it.only_arg),
                     .framework => try create_module.frameworks.put(arena, it.only_arg, .{}),
                     .nostdlibinc => create_module.want_native_include_dirs = false,
-                    .strip => mod_opts.strip = true,
+                    .strip => mod_opts.debug_format = .none,
                     .exec_model => {
                         create_module.opts.wasi_exec_model = parseWasiExecModel(it.only_arg);
                     },
@@ -2553,12 +2546,12 @@ fn buildOutputType(
                     mem.eql(u8, arg, "--color-diagnostics=never"))
                 {
                     color = .off;
-                } else if (mem.eql(u8, arg, "-s") or mem.eql(u8, arg, "--strip-all") or
-                    mem.eql(u8, arg, "-S") or mem.eql(u8, arg, "--strip-debug"))
-                {
+                } else if (mem.eql(u8, arg, "-s") or mem.eql(u8, arg, "--strip-all")) {
                     // -s, --strip-all             Strip all symbols
+                    mod_opts.debug_format = .none;
+                } else if (mem.eql(u8, arg, "-S") or mem.eql(u8, arg, "--strip-debug")) {
                     // -S, --strip-debug           Strip debugging symbols
-                    mod_opts.strip = true;
+                    mod_opts.debug_format = .symbols;
                 } else if (mem.eql(u8, arg, "--start-group") or
                     mem.eql(u8, arg, "--end-group"))
                 {
@@ -2868,8 +2861,6 @@ fn buildOutputType(
                 create_module.opts.any_unwind_tables = .@"async";
             },
         };
-        if (mod_opts.strip == false)
-            create_module.opts.any_non_stripped = true;
         if (mod_opts.error_tracing == true)
             create_module.opts.any_error_tracing = true;
 
@@ -3895,7 +3886,13 @@ fn createModule(
         const resolved_target = cli_mod.inherited.resolved_target.?;
         create_module.opts.resolved_target = resolved_target;
         create_module.opts.root_optimize_mode = cli_mod.inherited.optimize_mode;
-        create_module.opts.root_strip = cli_mod.inherited.strip;
+        create_module.opts.debug_format = if (cli_mod.inherited.debug_format) |fmt| switch (fmt) {
+            .none => .none,
+            .symbols => .symbols,
+            .dwarf32 => .dwarf32,
+            .dwarf64 => .dwarf64,
+            .codeview => .codeview,
+        } else null;
         create_module.opts.root_error_tracing = cli_mod.inherited.error_tracing;
         const target = resolved_target.result;
 
@@ -5454,7 +5451,6 @@ fn jitCmd(
         .Debug
     else
         .ReleaseFast;
-    const strip = optimize_mode != .Debug;
     const override_lib_dir: ?[]const u8 = try EnvVar.ZIG_LIB_DIR.get(arena);
     const override_global_cache_dir: ?[]const u8 = try EnvVar.ZIG_GLOBAL_CACHE_DIR.get(arena);
 
@@ -5502,7 +5498,6 @@ fn jitCmd(
 
         const config = try Compilation.Config.resolve(.{
             .output_mode = .Exe,
-            .root_strip = strip,
             .root_optimize_mode = optimize_mode,
             .resolved_target = resolved_target,
             .have_zcu = true,
@@ -5518,7 +5513,6 @@ fn jitCmd(
             .inherited = .{
                 .resolved_target = resolved_target,
                 .optimize_mode = optimize_mode,
-                .strip = strip,
             },
             .global = config,
             .parent = null,
@@ -5541,7 +5535,6 @@ fn jitCmd(
                 .inherited = .{
                     .resolved_target = resolved_target,
                     .optimize_mode = optimize_mode,
-                    .strip = strip,
                 },
                 .global = config,
                 .parent = null,
@@ -7585,8 +7578,6 @@ fn handleModArg(
             create_module.opts.any_unwind_tables = .@"async";
         },
     };
-    if (mod_opts.strip == false)
-        create_module.opts.any_non_stripped = true;
     if (mod_opts.error_tracing == true)
         create_module.opts.any_error_tracing = true;
 

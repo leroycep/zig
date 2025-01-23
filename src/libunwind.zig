@@ -34,7 +34,13 @@ pub fn buildStaticLib(comp: *Compilation, prog_node: std.Progress.Node) BuildErr
         .have_zcu = false,
         .emit_bin = true,
         .root_optimize_mode = comp.compilerRtOptMode(),
-        .root_strip = comp.compilerRtStrip(),
+        .debug_format = switch (comp.compilerRtDebugFormat()) {
+            .none => .none,
+            .symbols => .symbols,
+            .dwarf32 => .dwarf32,
+            .dwarf64 => .dwarf64,
+            .codeview => .codeview,
+        },
         .link_libc = true,
         .lto = comp.config.lto,
     }) catch |err| {
@@ -55,7 +61,6 @@ pub fn buildStaticLib(comp: *Compilation, prog_node: std.Progress.Node) BuildErr
         .fully_qualified_name = "root",
         .inherited = .{
             .resolved_target = comp.root_mod.resolved_target,
-            .strip = comp.compilerRtStrip(),
             .stack_check = false,
             .stack_protector = 0,
             .red_zone = comp.root_mod.red_zone,

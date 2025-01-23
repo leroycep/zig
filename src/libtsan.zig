@@ -51,7 +51,6 @@ pub fn buildTsan(comp: *Compilation, prog_node: std.Progress.Node) BuildError!vo
     };
 
     const optimize_mode = comp.compilerRtOptMode();
-    const strip = comp.compilerRtStrip();
     const link_libcpp = target.isDarwin();
 
     const config = Compilation.Config.resolve(.{
@@ -62,7 +61,13 @@ pub fn buildTsan(comp: *Compilation, prog_node: std.Progress.Node) BuildError!vo
         .have_zcu = false,
         .emit_bin = true,
         .root_optimize_mode = optimize_mode,
-        .root_strip = strip,
+        .debug_format = switch (comp.compilerRtDebugFormat()) {
+            .none => .none,
+            .symbols => .symbols,
+            .dwarf32 => .dwarf32,
+            .dwarf64 => .dwarf64,
+            .codeview => .codeview,
+        },
         .link_libc = true,
         .link_libcpp = link_libcpp,
     }) catch |err| {
@@ -87,7 +92,6 @@ pub fn buildTsan(comp: *Compilation, prog_node: std.Progress.Node) BuildError!vo
         .fully_qualified_name = "root",
         .inherited = .{
             .resolved_target = comp.root_mod.resolved_target,
-            .strip = strip,
             .stack_check = false,
             .stack_protector = 0,
             .sanitize_c = false,

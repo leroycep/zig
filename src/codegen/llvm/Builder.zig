@@ -1,5 +1,5 @@
 gpa: Allocator,
-strip: bool,
+debug_format: std.builtin.DebugFormat,
 
 source_filename: String,
 data_layout: String,
@@ -64,7 +64,7 @@ pub const expected_incoming_len = 8;
 
 pub const Options = struct {
     allocator: Allocator,
-    strip: bool = true,
+    debug_format: std.builtin.DebugFormat = .none,
     name: []const u8 = &.{},
     target: std.Target = builtin.target,
     triple: []const u8 = &.{},
@@ -4024,7 +4024,7 @@ pub const Function = struct {
     instructions: std.MultiArrayList(Instruction) = .{},
     names: [*]const String = &[0]String{},
     value_indices: [*]const u32 = &[0]u32{},
-    strip: bool,
+    debug_format: std.builtin.DebugFormat,
     debug_locations: std.AutoHashMapUnmanaged(Instruction.Index, DebugLocation) = .empty,
     debug_values: []const Instruction.Index = &.{},
     extra: []const u32 = &.{},
@@ -5141,7 +5141,7 @@ pub const WipFunction = struct {
     blocks: std.ArrayListUnmanaged(Block),
     instructions: std.MultiArrayList(Instruction),
     names: std.ArrayListUnmanaged(String),
-    strip: bool,
+    debug_format: std.builtin.DebugFormat,
     debug_locations: std.AutoArrayHashMapUnmanaged(Instruction.Index, DebugLocation),
     debug_values: std.AutoArrayHashMapUnmanaged(Instruction.Index, void),
     extra: std.ArrayListUnmanaged(u32),
@@ -5176,7 +5176,7 @@ pub const WipFunction = struct {
 
     pub fn init(builder: *Builder, options: struct {
         function: Function.Index,
-        strip: bool,
+        debug_format: std.builtin.DebugFormat,
     }) Allocator.Error!WipFunction {
         var self: WipFunction = .{
             .builder = builder,
@@ -5187,7 +5187,7 @@ pub const WipFunction = struct {
             .blocks = .{},
             .instructions = .{},
             .names = .{},
-            .strip = options.strip,
+            .debug_format = options.debug_format,
             .debug_locations = .{},
             .debug_values = .{},
             .extra = .{},
@@ -5197,12 +5197,12 @@ pub const WipFunction = struct {
         const params_len = options.function.typeOf(self.builder).functionParameters(self.builder).len;
         try self.ensureUnusedExtraCapacity(params_len, NoExtra, 0);
         try self.instructions.ensureUnusedCapacity(self.builder.gpa, params_len);
-        if (!self.strip) {
+        if (self.debug_format != .none and self.debug_format != .symbols) {
             try self.names.ensureUnusedCapacity(self.builder.gpa, params_len);
         }
         for (0..params_len) |param_index| {
             self.instructions.appendAssumeCapacity(.{ .tag = .arg, .data = @intCast(param_index) });
-            if (!self.strip) {
+            if (self.debug_format != .none and self.debug_format != .symbols) {
                 self.names.appendAssumeCapacity(.empty); // TODO: param names
             }
         }
@@ -5223,7 +5223,7 @@ pub const WipFunction = struct {
         try self.blocks.ensureUnusedCapacity(self.builder.gpa, 1);
 
         const index: Block.Index = @enumFromInt(self.blocks.items.len);
-        const final_name = if (self.strip) .empty else try self.builder.string(name);
+        const final_name = if (self.debug_format == .none or self.debug_format == .symbols) .empty else try self.builder.string(name);
         self.blocks.appendAssumeCapacity(.{
             .name = final_name,
             .incoming = incoming,
@@ -6151,7 +6151,7 @@ pub const WipFunction = struct {
     }
 
     pub fn debugValue(self: *WipFunction, value: Value) Allocator.Error!Metadata {
-        if (self.strip) return .none;
+        if (self.debug_format == .none or self.debug_format == .symbols) return .none;
         return switch (value.unwrap()) {
             .instruction => |instr_index| blk: {
                 const gop = try self.debug_values.getOrPut(self.builder.gpa, instr_index);
@@ -6339,7 +6339,7 @@ pub const WipFunction = struct {
             value_index += 1;
             function.instructions.appendAssumeCapacity(argument);
             names[@intFromEnum(new_argument_index)] = try wip_name.map(
-                if (self.strip) .empty else self.names.items[@intFromEnum(old_argument_index)],
+                if (self.debug_format == .none or self.debug_format == .symbols) .empty else self.names.items[@intFromEnum(old_argument_index)],
                 ".",
             );
             if (self.debug_locations.get(old_argument_index)) |location| {
@@ -6667,7 +6667,7 @@ pub const WipFunction = struct {
                     },
                 }
                 function.instructions.appendAssumeCapacity(instruction);
-                names[@intFromEnum(new_instruction_index)] = try wip_name.map(if (self.strip)
+                names[@intFromEnum(new_instruction_index)] = try wip_name.map(if (self.debug_format == .none or self.debug_format == .symbols)
                     if (old_instruction_index.hasResultWip(self)) .empty else .none
                 else
                     self.names.items[@intFromEnum(old_instruction_index)], ".");
@@ -6690,7 +6690,7 @@ pub const WipFunction = struct {
         function.blocks = blocks;
         function.names = names.ptr;
         function.value_indices = value_indices.ptr;
-        function.strip = self.strip;
+        function.debug_format = self.debug_format;
         function.debug_locations = debug_locations;
         function.debug_values = debug_values;
     }
@@ -6838,19 +6838,19 @@ pub const WipFunction = struct {
     ) Allocator.Error!Instruction.Index {
         const block_instructions = &self.cursor.block.ptr(self).instructions;
         try self.instructions.ensureUnusedCapacity(self.builder.gpa, 1);
-        if (!self.strip) {
+        if (self.debug_format != .none and self.debug_format != .symbols) {
             try self.names.ensureUnusedCapacity(self.builder.gpa, 1);
             try self.debug_locations.ensureUnusedCapacity(self.builder.gpa, 1);
         }
         try block_instructions.ensureUnusedCapacity(self.builder.gpa, 1);
         const final_name = if (name) |n|
-            if (self.strip) .empty else try self.builder.string(n)
+            if (self.debug_format == .none or self.debug_format == .symbols) .empty else try self.builder.string(n)
         else
             .none;
 
         const index: Instruction.Index = @enumFromInt(self.instructions.len);
         self.instructions.appendAssumeCapacity(instruction);
-        if (!self.strip) {
+        if (self.debug_format != .none and self.debug_format != .symbols) {
             self.names.appendAssumeCapacity(final_name);
             if (block_instructions.items.len == 0 or
                 !std.meta.eql(self.debug_location, self.prev_debug_location))
@@ -8501,7 +8501,7 @@ pub const Metadata = enum(u32) {
 pub fn init(options: Options) Allocator.Error!Builder {
     var self: Builder = .{
         .gpa = options.allocator,
-        .strip = options.strip,
+        .debug_format = options.debug_format,
 
         .source_filename = .none,
         .data_layout = .none,
@@ -9000,7 +9000,7 @@ pub fn addFunctionAssumeCapacity(
             .type = ty,
             .kind = .{ .function = function_index },
         }),
-        .strip = undefined,
+        .debug_format = undefined,
     });
     return function_index;
 }
@@ -12474,7 +12474,7 @@ fn debugFileAssumeCapacity(
     filename: MetadataString,
     directory: MetadataString,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.file, Metadata.File{
         .filename = filename,
         .directory = directory,
@@ -12489,7 +12489,7 @@ pub fn debugCompileUnitAssumeCapacity(
     globals: Metadata,
     options: Metadata.CompileUnit.Options,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataDistinctAssumeCapacity(
         if (options.optimized) .@"compile_unit optimized" else .compile_unit,
         Metadata.CompileUnit{
@@ -12512,7 +12512,7 @@ fn debugSubprogramAssumeCapacity(
     options: Metadata.Subprogram.Options,
     compile_unit: Metadata,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     const tag: Metadata.Tag = @enumFromInt(@intFromEnum(Metadata.Tag.subprogram) +
         @as(u3, @truncate(@as(u32, @bitCast(options.sp_flags)) >> 2)));
     return self.metadataDistinctAssumeCapacity(tag, Metadata.Subprogram{
@@ -12528,7 +12528,7 @@ fn debugSubprogramAssumeCapacity(
 }
 
 fn debugLexicalBlockAssumeCapacity(self: *Builder, scope: Metadata, file: Metadata, line: u32, column: u32) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.lexical_block, Metadata.LexicalBlock{
         .scope = scope,
         .file = file,
@@ -12538,7 +12538,7 @@ fn debugLexicalBlockAssumeCapacity(self: *Builder, scope: Metadata, file: Metada
 }
 
 fn debugLocationAssumeCapacity(self: *Builder, line: u32, column: u32, scope: Metadata, inlined_at: Metadata) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.location, Metadata.Location{
         .line = line,
         .column = column,
@@ -12548,7 +12548,7 @@ fn debugLocationAssumeCapacity(self: *Builder, line: u32, column: u32, scope: Me
 }
 
 fn debugBoolTypeAssumeCapacity(self: *Builder, name: MetadataString, size_in_bits: u64) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.basic_bool_type, Metadata.BasicType{
         .name = name,
         .size_in_bits_lo = @truncate(size_in_bits),
@@ -12557,7 +12557,7 @@ fn debugBoolTypeAssumeCapacity(self: *Builder, name: MetadataString, size_in_bit
 }
 
 fn debugUnsignedTypeAssumeCapacity(self: *Builder, name: MetadataString, size_in_bits: u64) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.basic_unsigned_type, Metadata.BasicType{
         .name = name,
         .size_in_bits_lo = @truncate(size_in_bits),
@@ -12566,7 +12566,7 @@ fn debugUnsignedTypeAssumeCapacity(self: *Builder, name: MetadataString, size_in
 }
 
 fn debugSignedTypeAssumeCapacity(self: *Builder, name: MetadataString, size_in_bits: u64) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.basic_signed_type, Metadata.BasicType{
         .name = name,
         .size_in_bits_lo = @truncate(size_in_bits),
@@ -12575,7 +12575,7 @@ fn debugSignedTypeAssumeCapacity(self: *Builder, name: MetadataString, size_in_b
 }
 
 fn debugFloatTypeAssumeCapacity(self: *Builder, name: MetadataString, size_in_bits: u64) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.basic_float_type, Metadata.BasicType{
         .name = name,
         .size_in_bits_lo = @truncate(size_in_bits),
@@ -12584,7 +12584,7 @@ fn debugFloatTypeAssumeCapacity(self: *Builder, name: MetadataString, size_in_bi
 }
 
 fn debugForwardReferenceAssumeCapacity(self: *Builder) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     const index = Metadata.first_forward_reference + self.metadata_forward_references.items.len;
     self.metadata_forward_references.appendAssumeCapacity(.none);
     return @enumFromInt(index);
@@ -12601,7 +12601,7 @@ fn debugStructTypeAssumeCapacity(
     align_in_bits: u64,
     fields_tuple: Metadata,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.debugCompositeTypeAssumeCapacity(
         .composite_struct_type,
         name,
@@ -12626,7 +12626,7 @@ fn debugUnionTypeAssumeCapacity(
     align_in_bits: u64,
     fields_tuple: Metadata,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.debugCompositeTypeAssumeCapacity(
         .composite_union_type,
         name,
@@ -12651,7 +12651,7 @@ fn debugEnumerationTypeAssumeCapacity(
     align_in_bits: u64,
     fields_tuple: Metadata,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.debugCompositeTypeAssumeCapacity(
         .composite_enumeration_type,
         name,
@@ -12676,7 +12676,7 @@ fn debugArrayTypeAssumeCapacity(
     align_in_bits: u64,
     fields_tuple: Metadata,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.debugCompositeTypeAssumeCapacity(
         .composite_array_type,
         name,
@@ -12701,7 +12701,7 @@ fn debugVectorTypeAssumeCapacity(
     align_in_bits: u64,
     fields_tuple: Metadata,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.debugCompositeTypeAssumeCapacity(
         .composite_vector_type,
         name,
@@ -12727,7 +12727,7 @@ fn debugCompositeTypeAssumeCapacity(
     align_in_bits: u64,
     fields_tuple: Metadata,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(tag, Metadata.CompositeType{
         .name = name,
         .file = file,
@@ -12753,7 +12753,7 @@ fn debugPointerTypeAssumeCapacity(
     align_in_bits: u64,
     offset_in_bits: u64,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.derived_pointer_type, Metadata.DerivedType{
         .name = name,
         .file = file,
@@ -12780,7 +12780,7 @@ fn debugMemberTypeAssumeCapacity(
     align_in_bits: u64,
     offset_in_bits: u64,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.derived_member_type, Metadata.DerivedType{
         .name = name,
         .file = file,
@@ -12800,7 +12800,7 @@ fn debugSubroutineTypeAssumeCapacity(
     self: *Builder,
     types_tuple: Metadata,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.subroutine_type, Metadata.SubroutineType{
         .types_tuple = types_tuple,
     });
@@ -12813,7 +12813,7 @@ fn debugEnumeratorAssumeCapacity(
     bit_width: u32,
     value: std.math.big.int.Const,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     const Key = struct {
         tag: Metadata.Tag,
         name: MetadataString,
@@ -12887,7 +12887,7 @@ fn debugSubrangeAssumeCapacity(
     lower_bound: Metadata,
     count: Metadata,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.subrange, Metadata.Subrange{
         .lower_bound = lower_bound,
         .count = count,
@@ -12898,7 +12898,7 @@ fn debugExpressionAssumeCapacity(
     self: *Builder,
     elements: []const u32,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     const Key = struct {
         elements: []const u32,
     };
@@ -13057,7 +13057,7 @@ fn debugLocalVarAssumeCapacity(
     line: u32,
     ty: Metadata,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.local_var, Metadata.LocalVar{
         .name = name,
         .file = file,
@@ -13076,7 +13076,7 @@ fn debugParameterAssumeCapacity(
     ty: Metadata,
     arg_no: u32,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.parameter, Metadata.Parameter{
         .name = name,
         .file = file,
@@ -13098,7 +13098,7 @@ fn debugGlobalVarAssumeCapacity(
     variable: Variable.Index,
     options: Metadata.GlobalVar.Options,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataDistinctAssumeCapacity(
         if (options.local) .@"global_var local" else .global_var,
         Metadata.GlobalVar{
@@ -13118,7 +13118,7 @@ fn debugGlobalVarExpressionAssumeCapacity(
     variable: Metadata,
     expression: Metadata,
 ) Metadata {
-    assert(!self.strip);
+    assert(self.debug_format != .none and self.debug_format != .symbols);
     return self.metadataSimpleAssumeCapacity(.global_var_expression, Metadata.GlobalVarExpression{
         .variable = variable,
         .expression = expression,
@@ -14010,7 +14010,7 @@ pub fn toBitcode(self: *Builder, allocator: Allocator) bitcode_writer.Error![]co
 
             inline for (@typeInfo(ir.FixedMetadataKind).@"enum".fields) |field| {
                 // don't include `dbg` in stripped functions
-                if (!(self.strip and std.mem.eql(u8, field.name, "dbg"))) {
+                if (!((self.debug_format == .none or self.debug_format == .symbols) and std.mem.eql(u8, field.name, "dbg"))) {
                     try metadata_kind_block.writeAbbrev(MetadataKindBlock.Kind{
                         .id = field.value,
                         .name = field.name,
@@ -14574,7 +14574,7 @@ pub fn toBitcode(self: *Builder, allocator: Allocator) bitcode_writer.Error![]co
                 };
 
                 // Emit function level metadata block
-                if (!func.strip and func.debug_values.len > 0) {
+                if ((func.debug_format != .none and func.debug_format != .symbols) and func.debug_values.len > 0) {
                     const MetadataBlock = ir.FunctionMetadataBlock;
                     var metadata_block = try function_block.enterSubBlock(MetadataBlock, false);
 
@@ -15093,7 +15093,7 @@ pub fn toBitcode(self: *Builder, allocator: Allocator) bitcode_writer.Error![]co
                         },
                     }
 
-                    if (!func.strip) {
+                    if (func.debug_format != .none and func.debug_format != .symbols) {
                         if (func.debug_locations.get(adapter.instruction_index)) |debug_location| {
                             switch (debug_location) {
                                 .no_location => has_location = false,
@@ -15114,7 +15114,7 @@ pub fn toBitcode(self: *Builder, allocator: Allocator) bitcode_writer.Error![]co
                 }
 
                 // VALUE_SYMTAB
-                if (!func.strip) {
+                if (func.debug_format != .none and func.debug_format != .symbols) {
                     const ValueSymbolTable = ir.FunctionValueSymbolTable;
 
                     var value_symtab_block = try function_block.enterSubBlock(ValueSymbolTable, false);
@@ -15141,7 +15141,7 @@ pub fn toBitcode(self: *Builder, allocator: Allocator) bitcode_writer.Error![]co
                     var metadata_attach_block = try function_block.enterSubBlock(MetadataAttachmentBlock, false);
 
                     dbg: {
-                        if (func.strip) break :dbg;
+                        if (func.debug_format == .none or func.debug_format == .symbols) break :dbg;
                         const dbg = func.global.ptrConst(self).dbg;
                         if (dbg == .none) break :dbg;
                         try metadata_attach_block.writeAbbrev(MetadataAttachmentBlock.AttachmentGlobalSingle{
